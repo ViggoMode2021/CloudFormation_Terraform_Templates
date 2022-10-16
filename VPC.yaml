@@ -1,0 +1,116 @@
+Parameters:
+  Tag:
+    Type: String
+
+Resources: 
+  VPC:
+    Type: "AWS::EC2::VPC"
+    Properties:
+      CidrBlock: "10.0.0.0/16"
+      InstanceTenancy: "default"
+      Tags:
+      - Key: "Name"
+        Value: !Ref "Tag"    
+
+  SubnetA:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      AvailabilityZone: !Select 
+        - 0
+        - !GetAZs 
+          Ref: 'AWS::Region'
+      VpcId: !Ref "VPC"
+      CidrBlock: "10.0.0.0/24"
+
+  SubnetB:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      AvailabilityZone: !Select 
+        - 1
+        - !GetAZs 
+          Ref: 'AWS::Region'
+      VpcId: !Ref "VPC"
+      CidrBlock: "10.0.1.0/24"
+
+  RouteTable:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref "VPC"
+
+  InternetGateway:
+    Type: "AWS::EC2::InternetGateway"
+
+  VPCGatewayAttachment:
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Properties:
+      VpcId: !Ref "VPC"
+      InternetGatewayId: !Ref "InternetGateway"
+
+  InternetRoute:
+    Type: "AWS::EC2::Route"
+    Properties:
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref RouteTable
+
+  SubnetARouteTableAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref SubnetA
+
+  SubnetBRouteTableAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref SubnetB
+
+  Type: AWS::EC2::Instance
+    Properties: 
+      AdditionalInfo: String
+      Affinity: String
+      AvailabilityZone: 'us-east-1'
+      HostId: String
+      HostResourceGroupArn: String
+      IamInstanceProfile: String
+      ImageId: String
+      InstanceInitiatedShutdownBehavior: String
+      InstanceType: String
+      Ipv6AddressCount: Integer
+      Ipv6Addresses: 
+        - InstanceIpv6Address
+      KernelId: String
+      KeyName: String
+      LaunchTemplate: 
+        LaunchTemplateSpecification
+      LicenseSpecifications: 
+        - LicenseSpecification
+      Monitoring: Boolean
+      NetworkInterfaces: 
+        - NetworkInterface
+      PlacementGroupName: String
+      PrivateDnsNameOptions: 
+        PrivateDnsNameOptions
+      PrivateIpAddress: String
+      PropagateTagsToVolumeOnCreation: Boolean
+      RamdiskId: String
+      SecurityGroupIds: 
+        - String
+      SecurityGroups: 
+        - String
+      SourceDestCheck: Boolean
+      SsmAssociations: 
+        - SsmAssociation
+      SubnetId: String
+      Tags: 
+        - Tag
+      Tenancy: String
+      UserData: String
+      Volumes: 
+        - Volume
+
+
+Outputs:
+  VpcId:
+    Description: The VPC ID
+    Value: !Ref VPC
