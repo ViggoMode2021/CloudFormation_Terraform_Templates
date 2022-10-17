@@ -1,0 +1,33 @@
+Parameters:
+  BucketNameParameter:
+    Type: String
+    Description: 'A bucket name'
+  Environment:
+    Type: String
+    AllowedValues:
+      - Dev
+      - Test
+      - Prod
+    Description: 'Select an environment'
+
+Mappings:
+  EnvironmentToBucketSuffix:
+    Dev:
+      Suffix: 'this-is-dev'
+    Test:
+      Suffix: 'this-test'
+    Prod:
+      Suffix: 'this-prod'
+
+Resources:
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Join [ '-', [
+          !Ref BucketNameParameter, !FindInMap [
+              EnvironmentToBucketSuffix,
+              !Ref Environment,
+              Suffix
+          ]
+        ]
+      ]
