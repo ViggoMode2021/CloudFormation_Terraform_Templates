@@ -1,280 +1,278 @@
-#STILL WORKING ON THIS
+variable "access_key" {
+  description = "AWS Access Key"
+  #default
+  type = string
+}
+
+variable "secret_key" {
+  description = "AWS Access Key"
+  #default
+  type = string
+}
+
+provider "aws" {
+  region     = "us-east-1"
+  access_key = var.access_key
+  secret_key = var.secret_key
+}
 
 resource "aws_ecs_cluster" "main" {
-  name = "cb-cluster"
+  name = "Practice Spanish, Buy Flights"
 }
 
-data "template_file" "cb_app" {
-  template = file("C:/Users/ryans/Desktop/terraform/cb_app.json.tpl")
+resource "aws_ecs_task_definition" "main" {
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = 256
+  memory                   = 512
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  task_role_arn            = aws_iam_role.ecs_task_role.arn
+  container_definitions = jsonencode([{
+   name        = "${var.name}-container-${var.environment}"
+   image       = "583715230104.dkr.ecr.us-east-1.amazonaws.com/practice-spanish-buy-flights-docker-image"
+   essential   = true
+   environment = var.container_environment
+   portMappings = [{
+     protocol      = "tcp"
+     containerPort = var.container_port
+     hostPort      = var.container_port
+   }]
 }
 
-variable "app_image" {
-  description = "ECR image URI"
-  #default
-  type = string
+resource "aws_iam_role" "ecs_task_role" {
+  name = "${var.name}-ecsTaskRole"
+ 
+  assume_role_policy = <<EOF
+{
+ "Version": "2012-10-17",
+ "Statement": [
+   {
+     "Action": "sts:AssumeRole",
+     "Principal": {
+       "Service": "ecs-tasks.amazonaws.com"
+     },
+     "Effect": "Allow",
+     "Sid": ""
+   }
+ ]
+}
+EOF
+}
+ 
+resource "aws_iam_role_policy_attachment" "ecs-task-role-policy-attachment" {
+  role       = aws_iam_role.ecs_task_role.name
+  policy_arn = aws_iam_policy.dynamodb.arn
 }
 
-variable "app_port" {
-  description = "Container Port"
-  #default
-  type = string
+resource "aws_iam_role_policy_attachment" "ecs-task-role-policy-attachment" {
+  role       = aws_iam_role.ecs_task_role.name
+  policy_arn = aws_iam_policy.dynamodb.arn
 }
 
-variable "fargate_cpu" {
-  description = "Fargate CPU"
-  #default
-  type = string
-}
-
-variable "fargate_memory" {
-  description = "Fargate memory"
-  #default
-  type = string
-}
-
-variable "aws_region" {
-  description = "AWS region"
-  #default
-  type = string
-}
-
-variable "az_count" {
-  description = "AWS region"
-  #default
-  type = string
-}
-
-variable "ecs_task_execution_role_name" {
-  description = "ECS task execution role name"
-  default     = "myEcsTaskExecutionRole"
-}
-
-resource "aws_ecs_task_definition" "service" {
-  family = "service"
-  container_definitions = jsonencode([
-  {
-  name        = "cb-app"
-  image       = "583715230104.dkr.ecr.us-east-1.amazonaws.com/practice-spanish-buy-flights-docker-image"
-  cpu         = "1"
-  memory      = "1024"
-  networkMode = "awsvpc"
-  portMappings = [
-    {
-      "containerPort" : 5000,
-      "hostPort" : 5000
-    }  
-]])
-
-resource "aws_security_group" "lb" {
-  name        = "cb-load-balancer-security-group"
-  description = "controls access to the ALB"
-  vpc_id      = aws_vpc.main.id
-
-  ingress {
-    protocol    = "tcp"
-    from_port   = var.app_port
-    to_port     = var.app_port
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    protocol    = "-1"
-    from_port   = 0
-    to_port     = 0
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
-# Traffic to the ECS cluster should only come from the ALB
-resource "aws_security_group" "ecs_tasks" {
-  name        = "cb-ecs-tasks-security-group"
-  description = "allow inbound access from the ALB only"
-  vpc_id      = aws_vpc.main.id
-
-  ingress {
-    protocol        = "tcp"
-    from_port       = var.app_port
-    to_port         = var.app_port
-    security_groups = [aws_security_group.lb.id]
-  }
-
-  egress {
-    protocol    = "-1"
-    from_port   = 0
-    to_port     = 0
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
-# ECS task execution role data
-data "aws_iam_policy_document" "ecs_task_execution_role" {
-  version = "2012-10-17"
-  statement {
-    sid     = ""
-    effect  = "Allow"
-    actions = ["sts:AssumeRole"]
-
-    principals {
-      type        = "Service"
-      identifiers = ["ecs-tasks.amazonaws.com"]
-    }
-  }
-}
-
-# ECS task execution role
 resource "aws_iam_role" "ecs_task_execution_role" {
-  name               = var.ecs_task_execution_role_name
-  assume_role_policy = data.aws_iam_policy_document.ecs_task_execution_role.json
+  name = "${var.name}-ecsTaskExecutionRole"
+ 
+  assume_role_policy = <<EOF
+{
+ "Version": "2012-10-17",
+ "Statement": [
+   {
+     "Action": "sts:AssumeRole",
+     "Principal": {
+       "Service": "ecs-tasks.amazonaws.com"
+     },
+     "Effect": "Allow",
+     "Sid": ""
+   }
+ ]
 }
-
-# ECS task execution role policy attachment
-resource "aws_iam_role_policy_attachment" "ecs_task_execution_role" {
+EOF
+}
+ 
+resource "aws_iam_role_policy_attachment" "ecs-task-execution-role-policy-attachment" {
   role       = aws_iam_role.ecs_task_execution_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-data "aws_availability_zones" "available" {
+resource "aws_ecs_service" "main" {
+ name                               = "${var.name}-service-${var.environment}"
+ cluster                            = aws_ecs_cluster.main.id
+ task_definition                    = aws_ecs_task_definition.main.arn
+ desired_count                      = 2
+ deployment_minimum_healthy_percent = 50
+ deployment_maximum_percent         = 200
+ launch_type                        = "FARGATE"
+ scheduling_strategy                = "REPLICA"
+ 
+ network_configuration {
+   security_groups  = var.ecs_service_security_groups
+   subnets          = var.subnets.*.id
+   assign_public_ip = false
+ }
+ 
+ load_balancer {
+   target_group_arn = var.aws_alb_target_group_arn
+   container_name   = "${var.name}-container-${var.environment}"
+   container_port   = var.container_port
+ }
+ 
+ lifecycle {
+   ignore_changes = [task_definition, desired_count]
+ }
 }
 
-resource "aws_vpc" "main" {
-  cidr_block = "172.17.0.0/16"
+resource "aws_lb" "main" {
+  name               = "${var.name}-alb-${var.environment}"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = var.alb_security_groups
+  subnets            = var.subnets.*.id
+ 
+  enable_deletion_protection = false
 }
-
-# Create var.az_count private subnets, each in a different AZ
-resource "aws_subnet" "private" {
-  count             = var.az_count
-  cidr_block        = cidrsubnet(aws_vpc.main.cidr_block, 8, count.index)
-  availability_zone = data.aws_availability_zones.available.names[count.index]
-  vpc_id            = aws_vpc.main.id
-}
-
-# Create var.az_count public subnets, each in a different AZ
-resource "aws_subnet" "public" {
-  count                   = var.az_count
-  cidr_block              = cidrsubnet(aws_vpc.main.cidr_block, 8, var.az_count + count.index)
-  availability_zone       = data.aws_availability_zones.available.names[count.index]
-  vpc_id                  = aws_vpc.main.id
-  map_public_ip_on_launch = true
-}
-
-# Internet Gateway for the public subnet
-resource "aws_internet_gateway" "gw" {
-  vpc_id = aws_vpc.main.id
-}
-
-# Route the public subnet traffic through the IGW
-resource "aws_route" "internet_access" {
-  route_table_id         = aws_vpc.main.main_route_table_id
-  destination_cidr_block = "0.0.0.0/0"
-  gateway_id             = aws_internet_gateway.gw.id
-}
-
-# Create a NAT gateway with an Elastic IP for each private subnet to get internet connectivity
-resource "aws_eip" "gw" {
-  count      = var.az_count
-  vpc        = true
-  depends_on = [aws_internet_gateway.gw]
-}
-
-resource "aws_nat_gateway" "gw" {
-  count         = var.az_count
-  subnet_id     = element(aws_subnet.public.*.id, count.index)
-  allocation_id = element(aws_eip.gw.*.id, count.index)
-}
-
-# Create a new route table for the private subnets, make it route non-local traffic through the NAT gateway to the internet
-resource "aws_route_table" "private" {
-  count  = var.az_count
-  vpc_id = aws_vpc.main.id
-
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = element(aws_nat_gateway.gw.*.id, count.index)
-  }
-}
-
-# Explicitly associate the newly created route tables to the private subnets (so they don't default to the main route table)
-resource "aws_route_table_association" "private" {
-  count          = var.az_count
-  subnet_id      = element(aws_subnet.private.*.id, count.index)
-  route_table_id = element(aws_route_table.private.*.id, count.index)
-}
-
-resource "aws_ecs_task_definition" "app" {
-  family                   = "cb-app-task"
-  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = var.fargate_cpu
-  memory                   = var.fargate_memory
-  container_definitions    = data.template_file.cb_app.rendered
-}
-
-resource "aws_alb" "main" {
-  name            = "cb-load-balancer"
-  subnets         = aws_subnet.public.*.id
-  security_groups = [aws_security_group.lb.id]
-}
-
-resource "aws_alb_target_group" "app" {
-  name        = "cb-target-group"
+ 
+resource "aws_alb_target_group" "main" {
+  name        = "${var.name}-tg-${var.environment}"
   port        = 80
   protocol    = "HTTP"
-  vpc_id      = aws_vpc.main.id
+  vpc_id      = var.vpc_id
   target_type = "ip"
-
+ 
   health_check {
-    healthy_threshold   = "3"
-    interval            = "30"
-    protocol            = "HTTP"
-    matcher             = "200"
-    timeout             = "3"
-    path                = var.health_check_path
-    unhealthy_threshold = "2"
+   healthy_threshold   = "3"
+   interval            = "30"
+   protocol            = "HTTP"
+   matcher             = "200"
+   timeout             = "3"
+   path                = var.health_check_path
+   unhealthy_threshold = "2"
   }
 }
 
-# Redirect all traffic from the ALB to the target group
-resource "aws_alb_listener" "front_end" {
-  load_balancer_arn = aws_alb.main.id
-  port              = var.app_port
+resource "aws_alb_listener" "http" {
+  load_balancer_arn = aws_lb.main.id
+  port              = 80
   protocol          = "HTTP"
-
+ 
   default_action {
-    target_group_arn = aws_alb_target_group.app.id
+   type = "redirect"
+ 
+   redirect {
+     port        = 443
+     protocol    = "HTTPS"
+     status_code = "HTTP_301"
+   }
+  }
+}
+ 
+resource "aws_alb_listener" "https" {
+  load_balancer_arn = aws_lb.main.id
+  port              = 443
+  protocol          = "HTTPS"
+ 
+  ssl_policy        = "ELBSecurityPolicy-2016-08"
+  certificate_arn   = var.alb_tls_cert_arn
+ 
+  default_action {
+    target_group_arn = aws_alb_target_group.main.id
     type             = "forward"
   }
 }
 
-
-variable "health_check_path" {
-  default = "/"
+resource "aws_lb" "main" {
+  name               = "${var.name}-alb-${var.environment}"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = var.alb_security_groups
+  subnets            = var.subnets.*.id
+ 
+  enable_deletion_protection = false
+}
+ 
+resource "aws_alb_target_group" "main" {
+  name        = "${var.name}-tg-${var.environment}"
+  port        = 80
+  protocol    = "HTTP"
+  vpc_id      = var.vpc_id
+  target_type = "ip"
+ 
+  health_check {
+   healthy_threshold   = "3"
+   interval            = "30"
+   protocol            = "HTTP"
+   matcher             = "200"
+   timeout             = "3"
+   path                = var.health_check_path
+   unhealthy_threshold = "2"
+  }
 }
 
-
-variable "app_count" {
-  description = "Number of docker containers to run"
-  default     = 3
+resource "aws_alb_listener" "http" {
+  load_balancer_arn = aws_lb.main.id
+  port              = 80
+  protocol          = "HTTP"
+ 
+  default_action {
+   type = "redirect"
+ 
+   redirect {
+     port        = 443
+     protocol    = "HTTPS"
+     status_code = "HTTP_301"
+   }
+  }
+}
+ 
+resource "aws_alb_listener" "https" {
+  load_balancer_arn = aws_lb.main.id
+  port              = 443
+  protocol          = "HTTPS"
+ 
+  ssl_policy        = "ELBSecurityPolicy-2016-08"
+  certificate_arn   = var.alb_tls_cert_arn
+ 
+  default_action {
+    target_group_arn = aws_alb_target_group.main.id
+    type             = "forward"
+  }
 }
 
-resource "aws_ecs_service" "main" {
-  name            = "cb-service"
-  cluster         = aws_ecs_cluster.main.id
-  task_definition = aws_ecs_task_definition.app.arn
-  desired_count   = var.app_count
-  launch_type     = "FARGATE"
+resource "aws_appautoscaling_target" "ecs_target" {
+  max_capacity       = 4
+  min_capacity       = 1
+  resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.main.name}"
+  scalable_dimension = "ecs:service:DesiredCount"
+  service_namespace  = "ecs"
+}
 
-  network_configuration {
-    security_groups  = [aws_security_group.ecs_tasks.id]
-    subnets          = aws_subnet.private.*.id
-    assign_public_ip = true
+resource "aws_appautoscaling_policy" "ecs_policy_memory" {
+  name               = "memory-autoscaling"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.ecs_target.resource_id
+  scalable_dimension = aws_appautoscaling_target.ecs_target.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.ecs_target.service_namespace
+ 
+  target_tracking_scaling_policy_configuration {
+   predefined_metric_specification {
+     predefined_metric_type = "ECSServiceAverageMemoryUtilization"
+   }
+ 
+   target_value       = 80
   }
-
-  load_balancer {
-    target_group_arn = aws_alb_target_group.app.id
-    container_name   = "cb-app"
-    container_port   = var.app_port
+}
+ 
+resource "aws_appautoscaling_policy" "ecs_policy_cpu" {
+  name               = "cpu-autoscaling"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.ecs_target.resource_id
+  scalable_dimension = aws_appautoscaling_target.ecs_target.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.ecs_target.service_namespace
+ 
+  target_tracking_scaling_policy_configuration {
+   predefined_metric_specification {
+     predefined_metric_type = "ECSServiceAverageCPUUtilization"
+   }
+ 
+   target_value       = 60
   }
-
-  depends_on = [aws_alb_listener.front_end, aws_iam_role_policy_attachment.ecs_task_execution_role]
 }
