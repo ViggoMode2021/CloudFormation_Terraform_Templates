@@ -1,266 +1,164 @@
-AWSTemplateFormatVersion: 2010-09-09
+#export AWS_ACCESS_KEY_ID=""
+#export AWS_SECRET_ACCESS_KEY=""
 
-Description: An example CloudFormation template for Fargate.
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 3.0"
+    }
+  }
+}
 
-Parameters:
-  VPC:
-    Type: AWS::EC2::VPC::Id
-    Default: ''
-  SubnetA:
-    Type: AWS::EC2::Subnet::Id
-    Default: ''
-  SubnetB:
-    Type: AWS::EC2::Subnet::Id
-    Default: ''
+provider "aws" {
+  profile = "default"
+  alias   = "us-east-1"
+  region  = "us-east-1"
+}
 
-  Image:
-    Type: String
-    # Update with the Docker image. "You can use images in the Docker Hub registry or specify other repositories (repository-url/image:tag)."
-    # Default: 123456789012.dkr.ecr.region.amazonaws.com/image:tag
-    Default: 583715230104.dkr.ecr.us-east-1.amazonaws.com/practice-spanish-buy-flights-docker-image
-  ServiceName:
-    Type: String
-    # update with the name of the service
-    Default: MyService
-  ContainerPort:
-    Type: Number
-    Default: 5000
-  LoadBalancerPort:
-    Type: Number
-    Default: 5000
-  HealthCheckPath:
-    Type: String
-    Default: /
-  Subdomain:
-    Type: String
-    Default: myservice
-  # for autoscaling
-  MinContainers:
-    Type: Number
-    Default: 2
-  # for autoscaling
-  MaxContainers:
-    Type: Number
-    Default: 10
-  # target CPU utilization (%)
-  AutoScalingTargetValue:
-    Type: Number
-    Default: 50
+variable "vpc_id" {
+  default = "vpc-0b8625ef3872c7a97"
+}
 
-Resources:
-  Cluster:
-    Type: AWS::ECS::Cluster
-    Properties:
-      ClusterName: !Join ['', [!Ref ServiceName, Cluster]]
+data "aws_vpc" "vpc_info" {
+  id = var.vpc_id
+}
 
-  TaskDefinition:
-    Type: AWS::ECS::TaskDefinition
-    # Makes sure the log group is created before it is used.
-    DependsOn: LogGroup
-    Properties:
-      # Name of the task definition. Subsequent versions of the task definition are grouped together under this name.
-      Family: !Join ['', [!Ref ServiceName, TaskDefinition]]
-      # awsvpc is required for Fargate
-      NetworkMode: awsvpc
-      RequiresCompatibilities:
-        - FARGATE
-      # 256 (.25 vCPU) - Available memory values: 0.5GB, 1GB, 2GB
-      # 512 (.5 vCPU) - Available memory values: 1GB, 2GB, 3GB, 4GB
-      # 1024 (1 vCPU) - Available memory values: 2GB, 3GB, 4GB, 5GB, 6GB, 7GB, 8GB
-      # 2048 (2 vCPU) - Available memory values: Between 4GB and 16GB in 1GB increments
-      # 4096 (4 vCPU) - Available memory values: Between 8GB and 30GB in 1GB increments
-      Cpu: 256
-      # 0.5GB, 1GB, 2GB - Available cpu values: 256 (.25 vCPU)
-      # 1GB, 2GB, 3GB, 4GB - Available cpu values: 512 (.5 vCPU)
-      # 2GB, 3GB, 4GB, 5GB, 6GB, 7GB, 8GB - Available cpu values: 1024 (1 vCPU)
-      # Between 4GB and 16GB in 1GB increments - Available cpu values: 2048 (2 vCPU)
-      # Between 8GB and 30GB in 1GB increments - Available cpu values: 4096 (4 vCPU)
-      Memory: 0.5GB
-      # A role needed by ECS.
-      # "The ARN of the task execution role that containers in this task can assume. All containers in this task are granted the permissions that are specified in this role."
-      # "There is an optional task execution IAM role that you can specify with Fargate to allow your Fargate tasks to make API calls to Amazon ECR."
-      ExecutionRoleArn: !Ref ExecutionRole
-      # "The Amazon Resource Name (ARN) of an AWS Identity and Access Management (IAM) role that grants containers in the task permission to call AWS APIs on your behalf."
-      TaskRoleArn: !Ref TaskRole
-      ContainerDefinitions:
-        - Name: !Ref ServiceName
-          Image: !Ref Image
-          PortMappings:
-            - ContainerPort: !Ref ContainerPort
-          # Send logs to CloudWatch Logs
-          LogConfiguration:
-            LogDriver: awslogs
-            Options:
-              awslogs-region: !Ref AWS::Region
-              awslogs-group: !Ref LogGroup
-              awslogs-stream-prefix: ecs
+# Data in Terraform is used for 
 
-  # A role needed by ECS
-  ExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !Join ['', [!Ref ServiceName, ExecutionRole]]
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: ecs-tasks.amazonaws.com
-            Action: 'sts:AssumeRole'
-      ManagedPolicyArns:
-        - 'arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy'
+variable "subnet_id" {
+  default = "subnet-093bfce1d9ace3245"
+}
 
-  # A role for the containers
-  TaskRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !Join ['', [!Ref ServiceName, TaskRole]]
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: ecs-tasks.amazonaws.com
-            Action: 'sts:AssumeRole'
-      # ManagedPolicyArns:
-      #   -
-      # Policies:
-      #   -
+data "aws_subnet" "subnet_1" {
+  id = var.subnet_id
+}
 
-  # A role needed for auto scaling
-  AutoScalingRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !Join ['', [!Ref ServiceName, AutoScalingRole]]
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: ecs-tasks.amazonaws.com
-            Action: 'sts:AssumeRole'
-      ManagedPolicyArns:
-        - 'arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceAutoscaleRole'
+variable "subnet_id_2" {
+  default = "subnet-09501a1bc33817665"
+}
 
-  ContainerSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: !Join ['', [!Ref ServiceName, ContainerSecurityGroup]]
-      VpcId: !Ref VPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: !Ref ContainerPort
-          ToPort: !Ref ContainerPort
-          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+data "aws_subnet" "subnet_2" {
+  id = var.subnet_id_2
+}
 
-  LoadBalancerSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: !Join ['', [!Ref ServiceName, LoadBalancerSecurityGroup]]
-      VpcId: !Ref VPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: !Ref LoadBalancerPort
-          ToPort: !Ref LoadBalancerPort
-          CidrIp: 0.0.0.0/0
+resource "aws_security_group" "my-personal-web" {
+  provider = aws.us-east-1
 
-  Service:
-    Type: AWS::ECS::Service
-    # This dependency is needed so that the load balancer is setup correctly in time
-    DependsOn:
-      - ListenerHTTP
-    Properties:
-      ServiceName: !Ref ServiceName
-      Cluster: !Ref Cluster
-      TaskDefinition: !Ref TaskDefinition
-      DeploymentConfiguration:
-        MinimumHealthyPercent: 100
-        MaximumPercent: 200
-      DesiredCount: 2
-      # This may need to be adjusted if the container takes a while to start up
-      HealthCheckGracePeriodSeconds: 30
-      LaunchType: FARGATE
-      NetworkConfiguration:
-        AwsvpcConfiguration:
-          # change to DISABLED if you're using private subnets that have access to a NAT gateway
-          AssignPublicIp: ENABLED
-          Subnets:
-            - !Ref SubnetA
-            - !Ref SubnetB
-          SecurityGroups:
-            - !Ref ContainerSecurityGroup
-      LoadBalancers:
-        - ContainerName: !Ref ServiceName
-          ContainerPort: !Ref ContainerPort
-          TargetGroupArn: !Ref TargetGroup
+  name        = "HTTP security"
+  description = "Allow HTTP inbound traffic"
+  vpc_id      = data.aws_vpc.vpc_info.id
 
-  TargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      HealthCheckIntervalSeconds: 10
-      # will look for a 200 status code by default unless specified otherwise
-      HealthCheckPath: !Ref HealthCheckPath
-      HealthCheckTimeoutSeconds: 5
-      UnhealthyThresholdCount: 2
-      HealthyThresholdCount: 2
-      Name: !Join ['', [!Ref ServiceName, TargetGroup]]
-      Port: !Ref ContainerPort
-      Protocol: HTTP
-      TargetGroupAttributes:
-        - Key: deregistration_delay.timeout_seconds
-          Value: 60 # default is 300
-      TargetType: ip
-      VpcId: !Ref VPC
+  ingress {
+    description = "Allow HTTP for all"
+    from_port   = 5000
+    to_port     = 5000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
 
-  ListenerHTTP:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      DefaultActions:
-        - TargetGroupArn: !Ref TargetGroup
-          Type: forward
-      LoadBalancerArn: !Ref LoadBalancer
-      Port: !Ref LoadBalancerPort
-      Protocol: HTTP
+resource "aws_lb" "my-personal-web" {
+  provider = aws.us-east-1
 
-  LoadBalancer:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-    Properties:
-      LoadBalancerAttributes:
-        # this is the default, but is specified here in case it needs to be changed
-        - Key: idle_timeout.timeout_seconds
-          Value: 60
-      Name: !Join ['', [!Ref ServiceName, LoadBalancer]]
-      # "internal" is also an option
-      Scheme: internet-facing
-      SecurityGroups:
-        - !Ref LoadBalancerSecurityGroup
-      Subnets:
-        - !Ref SubnetA
-        - !Ref SubnetB
+  name               = "my-personal-web-lb-tf"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.my-personal-web.id]
+  subnets            = [data.aws_subnet.subnet_1.id, data.aws_subnet.subnet_2.id]
+  tags = {
+    env = "dev"
+  }
+}
 
-  LogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Join ['', [/ecs/, !Ref ServiceName, TaskDefinition]]
+resource "aws_lb_target_group" "my-personal-web" {
+  provider = aws.us-east-1
 
-  AutoScalingTarget:
-    Type: AWS::ApplicationAutoScaling::ScalableTarget
-    Properties:
-      MinCapacity: !Ref MinContainers
-      MaxCapacity: !Ref MaxContainers
-      ResourceId: !Join ['/', [service, !Ref Cluster, !GetAtt Service.Name]]
-      ScalableDimension: ecs:service:DesiredCount
-      ServiceNamespace: ecs
-      # "The Amazon Resource Name (ARN) of an AWS Identity and Access Management (IAM) role that allows Application Auto Scaling to modify your scalable target."
-      RoleARN: !GetAtt AutoScalingRole.Arn
+  name        = "tf-my-personal-web-lb-tg"
+  port        = 5000
+  protocol    = "HTTP"
+  target_type = "ip"
+  vpc_id      = data.aws_vpc.vpc_info.id
+}
 
-  AutoScalingPolicy:
-    Type: AWS::ApplicationAutoScaling::ScalingPolicy
-    Properties:
-      PolicyName: !Join ['', [!Ref ServiceName, AutoScalingPolicy]]
-      PolicyType: TargetTrackingScaling
-      ScalingTargetId: !Ref AutoScalingTarget
-      TargetTrackingScalingPolicyConfiguration:
-        PredefinedMetricSpecification:
-          PredefinedMetricType: ECSServiceAverageCPUUtilization
-        ScaleInCooldown: 10
-        ScaleOutCooldown: 10
-        # Keep things at or lower than 50% CPU utilization, for example
-        TargetValue: !Ref AutoScalingTargetValue
+resource "aws_lb_listener" "my-personal-web" {
+  provider = aws.us-east-1
+
+  load_balancer_arn = aws_lb.my-personal-web.arn
+  port              = "5000"
+  protocol          = "HTTP"
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.my-personal-web.arn
+  }
+}
+
+resource "aws_ecs_cluster" "my-personal-web" {
+  provider = aws.us-east-1
+  name     = "my-personal-web-api-cluster"
+}
+
+resource "aws_ecs_cluster_capacity_providers" "my-personal-web" {
+  provider = aws.us-east-1
+
+  cluster_name = aws_ecs_cluster.my-personal-web.name
+
+  capacity_providers = ["FARGATE"]
+}
+
+data "aws_iam_role" "ecs_task_execution_role" {
+  name = "ecsTaskExecutionRole"
+  arn  = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+resource "aws_ecs_task_definition" "my-personal-web" {
+  provider = aws.us-east-1
+
+  family                   = "service"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  cpu                      = 256
+  memory                   = 0.5
+  execution_role_arn       = "data.aws_iam_role.ecs_task_execution_role.arn"
+  container_definitions = jsonencode([
+    {
+      name      = "my-personal-web-api"
+      image     = "583715230104.dkr.ecr.us-east-1.amazonaws.com/practice-spanish-buy-flights-docker-image"
+      cpu       = 1024
+      memory    = 2048
+      essential = true
+      portMappings = [
+        {
+          containerPort = 5000
+          hostPort      = 5000
+        }
+      ]
+    }
+  ])
+}
+
+resource "aws_ecs_service" "my-personal-web" {
+  provider = aws.us-east-1
+
+  name            = "my-personal-web"
+  cluster         = aws_ecs_cluster.my-personal-web.id
+  task_definition = aws_ecs_task_definition.my-personal-web.arn
+  desired_count   = 2
+  launch_type     = "FARGATE"
+
+  network_configuration {
+    subnets          = [data.aws_subnet.subnet_1.id, data.aws_subnet.subnet_2.id]
+    security_groups  = [aws_security_group.my-personal-web.id]
+    assign_public_ip = true
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.my-personal-web.arn
+    container_name   = "my-personal-web-api"
+    container_port   = 5000
+  }
+
+  tags = {
+    env = "dev"
+  }
+}
