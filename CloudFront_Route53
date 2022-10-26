@@ -3,22 +3,16 @@ provider "aws" {
 }
 
 variable "www_domain_name" {
-  default = "www.awssolutionsarchitectrpg.ninja"
+  default = "PUT WWW. DOMAIN NAME HERE"
 }
 
 variable "root_domain_name" {
-  default = "awssolutionsarchitectrpg.ninja"
+  default = "PUT WWW. DOMAIN NAME HERE"
 }
 
 resource "aws_s3_bucket" "www" {
-  // Our bucket's name is going to be the same as our site's domain name.
   bucket = var.www_domain_name
-  // Because we want our site to be available on the internet, we set this so
-  // anyone can read this bucket.
   acl = "public-read"
-  // We also need to create a policy that allows anyone to view the content.
-  // This is basically duplicating what we did in the ACL but it's required by
-  // AWS. This post: http://amzn.to/2Fa04ul explains why.
   policy = <<POLICY
 {
   "Version":"2012-10-17",
