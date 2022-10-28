@@ -5,14 +5,21 @@ provider "aws" {
 #export AWS_ACCESS_KEY_ID=""
 #export AWS_SECRET_ACCESS_KEY=""
 
+data "aws_s3_bucket_object" "lambda" {
+  bucket = "api-gateway-lambda-zip-files"
+  key    = "rest_api_lambda.zip"
+}
+
 resource "aws_lambda_function" "Ryan_API_Gateway" {
+  s3_bucket     = data.aws_s3_bucket_object.lambda.bucket
+  s3_key        = data.aws_s3_bucket_object.lambda.key
   function_name = "rest_api_lambda"
   handler       = "main.lambda_handler"
   runtime       = "python3.9"
   role          = "arn:aws:iam::583715230104:role/serverless-api-role" // TODO put your ARN role in here
-  filename      = "C:/Users/ryans/Desktop/Terraform Practice/rest_api_lambda.zip"
-  memory_size   = 128
-  timeout       = 10
+  #filename      = data.aws_s3_bucket_object.lambda.key
+  memory_size = 128
+  timeout     = 10
 }
 
 resource "aws_lambda_permission" "allow_api" {
