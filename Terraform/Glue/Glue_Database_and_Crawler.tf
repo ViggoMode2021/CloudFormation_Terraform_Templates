@@ -2,11 +2,15 @@ resource "aws_s3_bucket" "s3_bucket_name" {
   bucket = "pii-detector-test-vig"
 }
 
+resource "aws_s3_bucket" "s3_bucket_name_2" {
+  bucket = "pii-glue-job-code"
+}
+
 resource "aws_s3_object" "pii-data" {
 
   bucket = aws_s3_bucket.s3_bucket_name.id
 
-  key = "pii-data"
+  key = "pii-data.csv"
 
   source = "C:/Users/ryans/Desktop/sample-pii-data.csv"
 
@@ -14,7 +18,7 @@ resource "aws_s3_object" "pii-data" {
 
 resource "aws_s3_object" "glue_job" {
 
-  bucket = aws_s3_bucket.s3_bucket_name.id
+  bucket = aws_s3_bucket.s3_bucket_name_2.id
 
   key = "glue_job.py"
 
@@ -27,12 +31,24 @@ resource "aws_glue_catalog_database" "aws_glue_catalog_database" {
 }
 
 resource "aws_glue_crawler" "example" {
-  database_name = aws_glue_catalog_database.aws_glue_catalog_database.name
+  database_name = "sample-pii-data"
   name          = "pii_crawler_test"
   role          = "arn:aws:iam::583715230104:role/glue-course-full-access"
 
+  configuration = jsonencode(
+    {
+      Grouping = {
+        TableGroupingPolicy = "CombineCompatibleSchemas"
+      }
+      CrawlerOutput = {
+        Partitions = { AddOrUpdateBehavior = "InheritFromTable" }
+      }
+      Version = 1
+    }
+  )
+
   s3_target {
-    path = "s3://pii-detector-test-vig"
+    path = "s3://pii-detector-test-vig/"
   }
 }
 
@@ -41,7 +57,7 @@ resource "aws_glue_job" "pii-job" {
   role_arn = "arn:aws:iam::583715230104:role/glue-course-full-access"
 
   command {
-    script_location = "s3://pii-detector-test-vig/glue_job.py"
+    script_location = "s3://pii-glue-job-code/glue_job.py"
   }
 }
 
