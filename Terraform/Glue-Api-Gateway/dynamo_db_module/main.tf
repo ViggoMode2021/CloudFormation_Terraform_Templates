@@ -7,15 +7,15 @@ terraform {
   }
 }
 
-resource "aws_dynamodb_table" "rest_api_table" {
-  name           = "rest_api_table"
+resource "aws_dynamodb_table" "best_albums_table" {
+  name           = "best_albums_table"
   billing_mode   = "PROVISIONED"
   read_capacity  = 20
   write_capacity = 20
-  hash_key       = "productId"
+  hash_key       = "album_id"
 
   attribute {
-    name = "productId"
-    type = "S"
+    name = "album_id"
+    type = "N"
   }
 }
