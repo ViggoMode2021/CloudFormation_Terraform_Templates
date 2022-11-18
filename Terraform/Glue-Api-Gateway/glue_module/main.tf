@@ -20,9 +20,9 @@ resource "aws_s3_object" "glue_job" { # CHANGE THIS
 
   bucket = aws_s3_bucket.s3_bucket_name_2.id
 
-  key = "glue_job.py"
+  key = "glue_job_dynamo_db.py"
 
-  source = "C:/Users/ryans/Desktop/ecuador_glue/glue_job.py"
+  source = "C:/Users/ryans/Desktop/glue_job_dynamo_db.py"
 
 } # S3 object for Python file 
 
@@ -48,7 +48,7 @@ resource "aws_glue_crawler" "pii_crawler_glue_db" {
   )
 
   s3_target {
-    path = "s3://500-best-albums-glue"
+    path = "s3://best-albums-glue"
   }
 } # Glue crawler that will extract data from CSV and put it into a table in the Glue catalog database. 
 
