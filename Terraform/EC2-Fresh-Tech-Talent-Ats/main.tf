@@ -16,7 +16,9 @@ data "aws_ami" "ubuntu" { # change to AWS Linux 2
 
 resource "aws_instance" "web" {
   ami           = data.aws_ami.ubuntu.id
-  instance_type = "t3.micro"
+  instance_type = "t2.micro"
+  
+  user_data = "${file("user-data-fresh-tech-talent-ats.sh")}
 
   tags = {
     Name = "HelloWorld"
